@@ -1,0 +1,131 @@
+---
+title: "Cotización de vinilos"
+author: "Andrés Durán S."
+date: "duransalgado.andres@gmail.com"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 4
+    number_sections: true
+    theme: lumen
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Link ----------------------------------------------------------------
+url <- "https://musicland.cl/producto/musica/vinilos/pedro-aznar-mil-noches-y-un-instante-2-lp/"
+```
+
+```{r echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Librerías -----------------------------------------------------------
+library(xml2)
+library(rvest)
+library(tidyverse)
+library(readxl)
+library(openxlsx)
+```
+
+```{r echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Leyendo url
+read_url <- read_html(url)
+
+# Identificando página web
+# Etrayendo información desde url
+pag <- url %>% 
+  str_extract_all('[:alpha:]+') %>%
+  unlist() %>%
+  as.character(paste(collapse = '-'))
+pag <- pag[2]
+
+# Si la página es musicland
+if(pag == "musicland"){
+  obs1 <- 2
+  # Leyendo el precio
+  precio   <- read_url %>%
+    html_nodes(".woocommerce-Price-amount") %>%
+    html_text()
+  precio <- precio[obs1]
+  # Leyendo el título y artista
+  titulo <- read_url %>%
+    html_nodes(".product-title") %>%
+    html_text();titulo
+  titulo  <- as.character(titulo[1])
+  titulo <- strsplit(titulo, split = "–")
+  titulo <- titulo[[1]]
+  artista <- titulo[1]
+  vinilo  <- titulo[2]
+}
+# Si la página es vinilospormayor
+if(pag == "vinilospormayor"){
+  precio <- read_url %>%
+    html_nodes(".product__price") %>%
+    html_text()
+  precio <- substr(precio, start = 16, stop = 22)
+  
+  titulo <- read_url %>%
+    html_nodes(".product-single__title") %>%
+    html_text()
+  tit <- titulo %>%
+    str_extract_all('[:alpha:]+') %>%
+    unlist() %>%
+    as.character(paste(collapse = '-'))
+  artista <- paste(tit[1],"",tit[2],"",tit[3])           # Ajuste Manual
+  vinilo  <- paste(tit[4],"",tit[5]) # Ajuste Manual 
+}
+```
+
+```{r echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Creando data frame
+nuevo_vinilo <- data.frame(artista, vinilo, precio, url)
+```
+
+# Nuevo vinilo agregado
+
+Se agrega el siguiente vinilo `r vinilo` de `r artista` a un precio de `r precio`
+
+```{r echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Guardando información
+#vinilos_na <- read_excel("NA.xlsx") # solo para la primera vez
+vinilos_na <- read_excel("vinilos.xlsx")
+vinilos    <- rbind(vinilos_na, nuevo_vinilo) %>%
+  arrange(artista) %>%
+  filter(!is.na(precio))
+vinilos <- distinct(vinilos)
+
+# Exportando vinilo
+# Creando colores
+blue_bold <- createStyle(fontColour = "white", bgFill = "skyblue3",textDecoration = "bold")
+navy      <- createStyle(fontColour = "white", bgFill = "navy",textDecoration = "bold")
+red_white <- createStyle(fontColour = "white", bgFill = "orangered3")
+
+# Guardando información
+wb <- createWorkbook()
+addWorksheet(wb, sheetName = "vinilos", gridLines = TRUE)
+writeData(wb = wb, sheet = "vinilos", x = vinilos)
+
+# Anchura de columna
+setColWidths(wb, sheet = "vinilos", cols = 1, widths = 30)
+setColWidths(wb, sheet = "vinilos", cols = 2, widths = 70)
+setColWidths(wb, sheet = "vinilos", cols = 3, widths = 7)
+setColWidths(wb, sheet = "vinilos", cols = 4, widths = 110)
+# Aplicar colores a nombres de columnas
+conditionalFormatting(wb,sheet = "vinilos",cols = 1:ncol(vinilos),rows = 1,rule = "!=0",style = navy)
+
+# Exportando
+saveWorkbook(wb = wb, file = "vinilos.xlsx",overwrite = TRUE)
+```
+
+# La lista actual 
+
+La lista actual de vinilos cotizados corresponde a `r nrow(vinilos)` albumes contenidos en la siguiente base de datos:
+
+```{r echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+vinilos
+```
+
